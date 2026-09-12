@@ -1,0 +1,77 @@
+name: Proteção de Cabeçalhos (.h)
+
+on: [push]
+
+jobs:
+  check-headers:
+    name: Validar Integridade dos Cabeçalhos
+    if: |
+      github.repository != 'c3-disciplina-CienciaDasRedes/template-representacao-computacional' &&
+      github.actor != 'github-actions[bot]' &&
+      github.actor != 'github-classroom[bot]' &&
+      github.actor != 'mjcea'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verificar arquivos .h modificados
+        id: check
+        run: |
+          # Obtém a lista de arquivos modificados no push atual
+          # Trata o caso de primeira push (quando github.event.before é zero)
+          BEFORE_SHA=${{ github.event.before }}
+          if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            # Se for a primeira push, compara com o commit pai ou lista tudo
+            MODIFIED_FILES=$(git ls-files | grep -E '\.h$' || true)
+          else
+            MODIFIED_FILES=$(git diff --name-only $BEFORE_SHA ${{ github.sha }} | grep -E '\.h$' || true)
+          fi
+
+          if [ -n "$MODIFIED_FILES" ]; then
+            echo "modified=true" >> $GITHUB_OUTPUT
+            echo "Arquivos protegidos detectados: $MODIFIED_FILES"
+          else
+            echo "modified=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Registrar Aviso Técnico no README
+        if: steps.check.outputs.modified == 'true'
+        run: |
+          echo "Alteração em arquivos protegidos detectada. Atualizando README.md..."
+
+          # Remove aviso anterior caso já exista para evitar duplicatas
+          sed -i '/<!-- PROTECTED-FILES-WARNING-START -->/,/<!-- PROTECTED-FILES-WARNING-END -->/d' README.md
+
+          # Prepara o aviso técnico formatado
+          cat << 'EOF' | sed 's/^ *//' > aviso.tmp
+          <!-- PROTECTED-FILES-WARNING-START -->
+          > [!WARNING]
+          > ### Modificação de Contrato Detectada
+          >
+          > Os arquivos de cabeçalho (`.h`) definem a especificação e os contratos desta atividade e **não devem ser alterados**.
+
+          ---
+          <!-- PROTECTED-FILES-WARNING-END -->
+
+          EOF
+
+          # Insere o aviso no início do README.md
+          cat aviso.tmp README.md > README.new
+          mv README.new README.md
+          rm aviso.tmp
+
+          # Configura e envia o commit
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "build: registrar aviso de modificação em arquivos de cabeçalho (.h) [BOT]"
+          git push
+
+          echo "::error::Arquivos de especificação (.h) foram alterados. Restaure-os para que a integridade seja mantida."
+          exit 1
+
