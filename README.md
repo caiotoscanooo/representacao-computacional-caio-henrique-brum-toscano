@@ -1,3 +1,12 @@
+<!-- PROTECTED-FILES-WARNING-START -->
+> [!WARNING]
+> ### Modificação de Contrato Detectada
+>
+> Os arquivos de cabeçalho (`.h`) definem a especificação e os contratos desta atividade e **não devem ser alterados**.
+
+---
+<!-- PROTECTED-FILES-WARNING-END -->
+
 # Representação Computacional de Grafos
 
 > [!IMPORTANT]
